@@ -19,10 +19,25 @@
 #include "port.h"
 #include <sys/time.h>
 #include <math.h>
+#include "trilatmath.h"
 
 #define BUFSIZE 2048
+#define NUM_SCANNERS 3
+#define SCANNERADDRESS_A "10.0.0.160"
+#define SCANNERADDRESS_B "10.0.0.192"
+#define SCANNERADDRESS_C "10.0.0.100"
+#define MEASURED_POWER_A -58
+#define MEASURED_POWER_B -58
+#define MEASURED_POWER_C -58
+#define PATH_LOSS_CONSTANT 3
 
-int g_rssiA, g_rssiB, g_rssiC;
+typedef struct {
+    char* address;
+    char name; // to differientiate the scanners (A,B,C)
+    int measuredPower; // RSSI value at 1 Meter (measured physically)
+    int rssi;
+    double distance; // estimated distance from the target device in meters (we calculate)
+}BLEscanner;
 
 int main(int argc, char **argv){
 
@@ -35,7 +50,6 @@ int main(int argc, char **argv){
         struct timeval tv;              // time value struct for timestamping
 
 	// create a UDP socket
-        // this is what the biscuit will send UDP packets to
 
 	if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
 		perror("cannot create socket\n");
@@ -55,58 +69,67 @@ int main(int argc, char **argv){
 	}
 
 	/* now loop infinitely, waiting for data, receiving data, printing what we received */
+        
+        BLEscanner* scanner = malloc(3 * sizeof(BLEscanner));
+        
+        scanner[0].address = SCANNERADDRESS_A;
+        scanner[0].name =  'A';
+        scanner[0].measuredPower = MEASURED_POWER_A;
 
-        char* scannerA = "10.0.0.160";
-        char* scannerB = "10.0.0.192";
-        char* scannerC = "10.0.0.100";
+        scanner[1].address = SCANNERADDRESS_B;
+        scanner[1].name =  'B';
+        scanner[1].measuredPower = MEASURED_POWER_B;
 
-        g_rssiA = 0;
-        g_rssiB = 0;
-        g_rssiC = 0;
-
+        scanner[2].address = SCANNERADDRESS_C;
+        scanner[2].name =  'C';
+        scanner[2].measuredPower = MEASURED_POWER_C;
+       
         // once readings from each device are collected, run algorithm
   
-	while(1) {
-		printf("waiting on port %d\n", SERVICE_PORT);
-		recvlen = recvfrom(fd, buf, BUFSIZE, 0, (struct sockaddr *)&remaddr, &addrlen);
-                char* fromAddress = inet_ntoa(remaddr.sin_addr);
+	while(1){
+	    printf("waiting on port %d\n", SERVICE_PORT);
+            recvlen = recvfrom(fd, buf, BUFSIZE, 0, (struct sockaddr *)&remaddr, &addrlen);
+            char* clientAddress = inet_ntoa(remaddr.sin_addr);
+            unsigned short clientPort = ntohs(remaddr.sin_port); 
 
-		printf("Received %d bytes\n", recvlen);
-                printf("Received packet from %s:%d\n",
-                   inet_ntoa(remaddr.sin_addr),ntohs(remaddr.sin_port));
-                gettimeofday(&tv, NULL);
-		printf("Timestamp: %ld.%06d\n", tv.tv_sec, tv.tv_usec);
-                if (recvlen > 0) {
-			buf[recvlen] = '\0';
-                        printf("Received message:\n\%s\n\n",buf);
-		}
-                // ignore timestamping for now...
-                // after accumulating a reading from each device, plug in to alg
-                if(strcmp(scannerA,fromAddress) == 0){
-                    g_rssiA = atoi(buf); 
+            printf("Received %d bytes in packet from %s:\n",recvlen,clientAddress);
+            if (recvlen > 0) {
+                buf[recvlen] = '\0';
+                printf("Received message: %s\n",buf);
+            }
+                
+            // When scanners first connect, they send UDP packet 'Connected'
+            if (recvlen == 3){
+              // received packet was an RSSI value
+              // determine which scanner the packet was sent from, thens set RSSI of scanner
+                for(int i = 0; i < NUM_SCANNERS; i++){
+                    if(strcmp(scanner[i].address,clientAddress) == 0){
+                        scanner[i].rssi = atoi(buf); 
+                        scanner[i].distance = rssiToMeters(scanner[i].rssi, scanner[i].measuredPower, PATH_LOSS_CONSTANT); 
+                    }
                 }
-                if(strcmp(scannerB,fromAddress) == 0){
-                    g_rssiB = atoi(buf); 
-                }
-                if(strcmp(scannerC,fromAddress) == 0){
-                    g_rssiC = atoi(buf); 
-                }
-                if(g_rssiA < 0 && g_rssiB < 0 && g_rssiC < 0){
-                    printf("RSSI values collected from each device.\n");
-                    printf("rssiA: %d\n",g_rssiA);
-                    printf("rssiB: %d\n",g_rssiB);
-                    printf("rssiC: %d\n\n",g_rssiC);
 
-                    //distance (meters) = 10 ^ ((Ptx - RSSI) / (10 * n))
-                    double Ptx = -58; //self-calibrated RSSI at 1 meter
-                    double n = 3.0;
-                    double dA = pow(10.0,((Ptx - g_rssiA) / (10.0 * n)));
-                    double dB = pow(10.0,((Ptx - g_rssiB) / (10.0 * n)));
-                    double dC = pow(10.0,((Ptx - g_rssiC) / (10.0 * n)));
-                    printf("dA: %f\n",dA);
-                    printf("dB: %f\n",dB);
-                    printf("dC: %f\n",dC);
-                    return 0;
+                // have to wait for all scanners to be updated with an rssi before trilateration
+
+                if(scanner[0].rssi < 0 && scanner[1].rssi < 0 && scanner[2].rssi < 0){
+
+                    printf("RSSI values collected from each device:\n");
+                    for(int i = 0; i < NUM_SCANNERS; i++){
+                        printf("\tScanner %c RSSI: %d\n",scanner[i].name,scanner[i].rssi);
+                    } 
+                    printf("Estimated distance values calculated for each device:\n");
+                    for(int i = 0; i < NUM_SCANNERS; i++){
+                        printf("\tScanner %c Distance (meters): %f\n",scanner[i].name,scanner[i].distance);
+                    }
+                    printf("\n"); 
+
+                    //reset RSSI and distances
+                    for(int i = 0; i < 3; i++){
+                        scanner[i].rssi = 0;
+                        scanner[i].distance = 0;
+                    }
                 }
-	}
+            }
+        }
+    return 0;
 }

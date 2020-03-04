@@ -1,10 +1,14 @@
 CC=gcc
-CFLAGS = -g 
+CFLAGS= -I.
+DEPS = trilatmath.h
+OBJ = trilateration-server.o trilatmath.o
 
-all: trilateration-server
+%.o: %.c $(DEPS)
+	$(CC) -c -o $@ $< $(CFLAGS)
 
-trilateration-server: trilateration-server.o 
-	$(CC) -o trilateration-server trilateration-server.o $(LIBS)
+trilateration-server: $(OBJ)
+	$(CC) -o $@ $^ $(CFLAGS)
 
 clean:
-	rm -f trilareation-server trilateration-server.o 
+	rm -f trilateration-server trilateration-server.o trilatmath.o
+

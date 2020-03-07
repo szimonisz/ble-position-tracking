@@ -6,7 +6,7 @@
 
         usage:  ./udp-recv
 
-        A modified version of Paul Krzyzanowski's demo-udp-03
+        UDP related initalization credited to Paul Krzyzanowski's demo-udp-03
         https://www.cs.rutgers.edu/~pxk/417/notes/sockets/demo-udp-03.html
 */
 
@@ -26,6 +26,10 @@
 #define SCANNERADDRESS_A "10.0.0.160"
 #define SCANNERADDRESS_B "10.0.0.192"
 #define SCANNERADDRESS_C "10.0.0.100"
+#define WORLDPOSITION_A (0,0)
+#define WORLDPOSITION_B (1,3)
+#define WORLDPOSITION_C (1,3)
+
 #define MEASURED_POWER_A -58
 #define MEASURED_POWER_B -58
 #define MEASURED_POWER_C -58

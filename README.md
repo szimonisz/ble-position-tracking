@@ -1,5 +1,7 @@
 # ble-position-tracking
 
+![BLE-TRILATERATION-POSTER](./images/cis_433_poster.png)
+
 ### BLE Scanners: 
 Flash three ESP32's with ESP32_BLE_Scanner_Targeted_WiFi.ino 
 

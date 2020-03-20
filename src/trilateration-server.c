@@ -26,6 +26,7 @@
 #define SCANNERADDRESS_A "10.0.0.160"
 #define SCANNERADDRESS_B "10.0.0.192"
 #define SCANNERADDRESS_C "10.0.0.100"
+<<<<<<< HEAD:src/trilateration-server.c
 
 #define WORLDPOSITION_X_A 0.0
 #define WORLDPOSITION_Y_A 0.0
@@ -35,6 +36,11 @@
 
 #define WORLDPOSITION_X_C -2.9062
 #define WORLDPOSITION_Y_C 6.668
+=======
+#define WORLDPOSITION_A (0,0)
+#define WORLDPOSITION_B (1,3)
+#define WORLDPOSITION_C (1,3)
+>>>>>>> 35b93c2c1a3bc9472885262febdee3270dff6041:trilateration-server.c
 
 #define MEASURED_POWER_A -58
 #define MEASURED_POWER_B -55

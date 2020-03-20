@@ -1,14 +1,25 @@
-CC=gcc
-CFLAGS= -I.
+CC =gcc # the C compiler
+
+SRCDIR = src
+BUILDDIR = build
+TARGETDIR = bin
+TARGET = $(TARGETDIR)/trilateration-server
+ 
+INC = -I include
 DEPS = trilatmath.h
-OBJ = trilateration-server.o trilatmath.o
+OBJECTS = $(BUILDDIR)/trilateration-server.o $(BUILDDIR)/trilatmath.o
 
-%.o: %.c $(DEPS)
-	$(CC) -c -o $@ $< $(CFLAGS)
+$(TARGET): $(OBJECTS)
+        # -o specifies the output filename
+	@mkdir -p $(TARGETDIR)
+	@echo "$(CC) -o $(TARGET) $(OBJECTS) $(INC)"
+	$(CC) -o $(TARGET) $(OBJECTS) $(INC)
 
-trilateration-server: $(OBJ)
-	$(CC) -o $@ $^ $(CFLAGS)
+$(BUILDDIR)/%.o: $(SRCDIR)/%.c
+        # -c: compile the source file into the specified object file
+	@mkdir -p $(BUILDDIR)
+	@echo "$(CC) -o $@ -c $< $(INC)"
+	$(CC) -o $@ -c $< $(INC)
 
 clean:
-	rm -f trilateration-server trilateration-server.o trilatmath.o
-
+	rm -r $(BUILDDIR) $(TARGETDIR)

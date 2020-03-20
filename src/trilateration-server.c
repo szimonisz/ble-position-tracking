@@ -6,7 +6,7 @@
 
         usage:  ./udp-recv
 
-        A modified version of Paul Krzyzanowski's demo-udp-03
+        UDP related initalization credited to Paul Krzyzanowski's demo-udp-03
         https://www.cs.rutgers.edu/~pxk/417/notes/sockets/demo-udp-03.html
 */
 
@@ -26,17 +26,31 @@
 #define SCANNERADDRESS_A "10.0.0.160"
 #define SCANNERADDRESS_B "10.0.0.192"
 #define SCANNERADDRESS_C "10.0.0.100"
-#define MEASURED_POWER_A -58
-#define MEASURED_POWER_B -58
-#define MEASURED_POWER_C -58
-#define PATH_LOSS_CONSTANT 3
 
-typedef struct {
+#define WORLDPOSITION_X_A 0.0
+#define WORLDPOSITION_Y_A 0.0
+
+#define WORLDPOSITION_X_B -3.236
+#define WORLDPOSITION_Y_B 2.286
+
+#define WORLDPOSITION_X_C -2.9062
+#define WORLDPOSITION_Y_C 6.668
+
+#define MEASURED_POWER_A -58
+#define MEASURED_POWER_B -55
+#define MEASURED_POWER_C -54
+#define PATH_LOSS_CONSTANT 2
+
+#define WORLDPOSITION_X_TARGET -2.5149
+#define WORLDPOSITION_Y_TARGET 4.4577
+
+typedef struct{
     char* address;
     char name; // to differientiate the scanners (A,B,C)
     int measuredPower; // RSSI value at 1 Meter (measured physically)
     int rssi;
     double distance; // estimated distance from the target device in meters (we calculate)
+    Coordinate worldPos; // measured location of scanner relative to origin
 }BLEscanner;
 
 int main(int argc, char **argv){
@@ -70,19 +84,27 @@ int main(int argc, char **argv){
 
 	/* now loop infinitely, waiting for data, receiving data, printing what we received */
         
+        // initialize BLE Scanners
         BLEscanner* scanner = malloc(3 * sizeof(BLEscanner));
         
         scanner[0].address = SCANNERADDRESS_A;
         scanner[0].name =  'A';
         scanner[0].measuredPower = MEASURED_POWER_A;
+        scanner[0].worldPos.x = WORLDPOSITION_X_A;
+        scanner[0].worldPos.y = WORLDPOSITION_Y_A;
 
         scanner[1].address = SCANNERADDRESS_B;
         scanner[1].name =  'B';
         scanner[1].measuredPower = MEASURED_POWER_B;
+        scanner[1].worldPos.x = WORLDPOSITION_X_B;
+        scanner[1].worldPos.y = WORLDPOSITION_Y_B;
 
         scanner[2].address = SCANNERADDRESS_C;
         scanner[2].name =  'C';
         scanner[2].measuredPower = MEASURED_POWER_C;
+        scanner[2].worldPos.x = WORLDPOSITION_X_C;
+        scanner[2].worldPos.y = WORLDPOSITION_Y_C;
+   
        
         // once readings from each device are collected, run algorithm
   
@@ -121,7 +143,12 @@ int main(int argc, char **argv){
                     for(int i = 0; i < NUM_SCANNERS; i++){
                         printf("\tScanner %c Distance (meters): %f\n",scanner[i].name,scanner[i].distance);
                     }
-                    printf("\n"); 
+                    Coordinate estimatedTargetPos = trilateration(scanner[0].worldPos,scanner[1].worldPos,scanner[2].worldPos,scanner[0].distance,scanner[1].distance,scanner[2].distance);
+                    printf("Estimated target location via trilateration: (%f,%f)\n",estimatedTargetPos.x,estimatedTargetPos.y);
+                    printf("Real target location via trilateration: (%f,%f)\n\n", WORLDPOSITION_X_TARGET, WORLDPOSITION_Y_TARGET);
+
+                    printf("X-position error: %f meters off\n",fabs(fmax(WORLDPOSITION_X_TARGET,estimatedTargetPos.x) - fmin(WORLDPOSITION_X_TARGET,estimatedTargetPos.x)));
+                    printf("Y-position error: %f meters off\n",fabs(fmax(WORLDPOSITION_Y_TARGET,estimatedTargetPos.y) - fmin(WORLDPOSITION_Y_TARGET,estimatedTargetPos.y)));
 
                     //reset RSSI and distances
                     for(int i = 0; i < 3; i++){
